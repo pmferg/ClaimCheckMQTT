@@ -1,0 +1,53 @@
+package claimcheck_test
+
+import (
+	"testing"
+
+	"github.com/claimcheck/claimcheck-mqtt/pkg/claimcheck"
+)
+
+func TestGenerateMPID_Unique(t *testing.T) {
+	seen := make(map[string]struct{}, 1000)
+	for i := 0; i < 1000; i++ {
+		id := claimcheck.GenerateMPID()
+		if _, exists := seen[id]; exists {
+			t.Fatalf("duplicate MPID on iteration %d: %s", i, id)
+		}
+		seen[id] = struct{}{}
+	}
+}
+
+func TestEnvelope_RoundTrip(t *testing.T) {
+	env := claimcheck.NewEnvelope("devices/temp", "sensor-1", "application/octet-stream", 4096)
+	data, err := env.Marshal()
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+
+	got, err := claimcheck.UnmarshalEnvelope(data)
+	if err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+
+	if got.MPID != env.MPID {
+		t.Errorf("MPID mismatch: got %s, want %s", got.MPID, env.MPID)
+	}
+	if got.Type != claimcheck.EnvelopeType {
+		t.Errorf("type mismatch: got %s", got.Type)
+	}
+}
+
+func TestIsClaimCheck(t *testing.T) {
+	env := claimcheck.NewEnvelope("t", "", "text/plain", 10)
+	data, _ := env.Marshal()
+
+	if !claimcheck.IsClaimCheck(data) {
+		t.Error("expected IsClaimCheck to return true for a valid envelope")
+	}
+	if claimcheck.IsClaimCheck([]byte(`{"type":"other"}`)) {
+		t.Error("expected IsClaimCheck to return false for non-claimcheck type")
+	}
+	if claimcheck.IsClaimCheck([]byte(`not json`)) {
+		t.Error("expected IsClaimCheck to return false for invalid JSON")
+	}
+}
