@@ -1,4 +1,4 @@
-module github.com/claimcheck/claimcheck-mqtt
+module github.com/pmferg/ClaimCheckMQTT
 
 go 1.25
 

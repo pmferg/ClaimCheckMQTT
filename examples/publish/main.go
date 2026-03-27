@@ -8,8 +8,8 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/claimcheck/claimcheck-mqtt/pkg/publisher"
-	"github.com/claimcheck/claimcheck-mqtt/pkg/storage"
+	"github.com/pmferg/ClaimCheckMQTT/pkg/publisher"
+	"github.com/pmferg/ClaimCheckMQTT/pkg/storage"
 )
 
 func main() {

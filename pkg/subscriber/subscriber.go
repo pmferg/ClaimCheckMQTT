@@ -7,8 +7,8 @@ import (
 	"io"
 	"log/slog"
 
-	"github.com/claimcheck/claimcheck-mqtt/pkg/claimcheck"
-	"github.com/claimcheck/claimcheck-mqtt/pkg/storage"
+	"github.com/pmferg/ClaimCheckMQTT/pkg/claimcheck"
+	"github.com/pmferg/ClaimCheckMQTT/pkg/storage"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 )

@@ -3,7 +3,7 @@ package claimcheck_test
 import (
 	"testing"
 
-	"github.com/claimcheck/claimcheck-mqtt/pkg/claimcheck"
+	"github.com/pmferg/ClaimCheckMQTT/pkg/claimcheck"
 )
 
 func TestGenerateMPID_Unique(t *testing.T) {
