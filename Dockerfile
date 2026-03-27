@@ -4,22 +4,18 @@ WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
-RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /gateway ./cmd/gateway
+RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /publish  ./examples/publish \
+ && CGO_ENABLED=0 go build -ldflags="-s -w" -o /subscribe ./examples/subscribe
 
-FROM scratch
+FROM alpine:3.21
 COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-COPY --from=build /gateway /gateway
+COPY --from=build /publish  /usr/local/bin/publish
+COPY --from=build /subscribe /usr/local/bin/subscribe
 
-ENV LISTEN_ADDR=:8080 \
-    MQTT_BROKER_URL=tcp://mqtt:1883 \
-    MQTT_CLIENT_ID=claimcheck-gateway \
+ENV MQTT_BROKER_URL=tcp://mqtt:1883 \
     MQTT_USERNAME=claimcheck \
     MQTT_PASSWORD=claimcheck123 \
     MINIO_ENDPOINT=minio:9000 \
     MINIO_ACCESS_KEY=minioadmin \
     MINIO_SECRET_KEY=minioadmin \
-    MINIO_BUCKET=claimcheck \
-    MINIO_USE_SSL=false
-
-EXPOSE 8080
-ENTRYPOINT ["/gateway"]
+    MINIO_BUCKET=claimcheck

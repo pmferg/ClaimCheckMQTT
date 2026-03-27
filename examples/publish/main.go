@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/claimcheck/claimcheck-mqtt/pkg/publisher"
 	"github.com/claimcheck/claimcheck-mqtt/pkg/storage"
@@ -13,7 +15,8 @@ import (
 func main() {
 	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stdout, nil)))
 
-	ctx := context.Background()
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer cancel()
 
 	store, err := storage.NewMinIO(ctx, storage.MinIOConfig{
 		Endpoint:  envOr("MINIO_ENDPOINT", "localhost:9000"),
@@ -41,13 +44,29 @@ func main() {
 
 	payload := []byte(`{"temperature":22.5,"unit":"celsius","sensor":"living-room"}`)
 
-	env, err := pub.Send(ctx, "sensors/temperature", "example", "application/json", payload)
+	// Send with callback — the subscriber can reply on the callback channel.
+	env, cbCh, err := pub.SendWithCallback(ctx, "sensors/temperature", "example", "application/json", payload)
 	if err != nil {
 		slog.Error("send", "err", err)
 		os.Exit(1)
 	}
 
-	fmt.Printf("Published claim-check message\n  MPID:  %s\n  Topic: %s\n  Size:  %d bytes\n", env.MPID, env.Topic, env.PayloadSize)
+	fmt.Printf("Published claim-check message\n  MPID:     %s\n  Topic:    %s\n  Callback: %s\n  Size:     %d bytes\n\n", env.MPID, env.Topic, env.CallbackTopic, env.PayloadSize)
+	fmt.Println("Waiting for callback responses (ctrl-c to quit)...")
+
+	for {
+		select {
+		case msg, ok := <-cbCh:
+			if !ok {
+				fmt.Println("Callback channel closed by subscriber.")
+				return
+			}
+			fmt.Printf("Callback response:\n  MPID:    %s\n  Size:    %d bytes\n  Payload: %s\n\n",
+				msg.Envelope.MPID, msg.Envelope.PayloadSize, string(msg.Payload))
+		case <-ctx.Done():
+			return
+		}
+	}
 }
 
 func envOr(key, fallback string) string {

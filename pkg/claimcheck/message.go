@@ -8,22 +8,24 @@ import (
 )
 
 const (
-	EnvelopeType    = "claimcheck.v1"
-	EnvelopeVersion = "1.0"
+	EnvelopeType      = "claimcheck.v1"
+	CallbackCloseType = "claimcheck.callback.close.v1"
+	EnvelopeVersion   = "1.0"
 )
 
 // Envelope is the standardised outer message published to MQTT.
 // It carries only metadata; the actual payload lives in object storage
 // and is referenced by MPID.
 type Envelope struct {
-	Version     string `json:"version"`
-	Type        string `json:"type"`
-	MPID        string `json:"mpid"`
-	Topic       string `json:"topic"`
-	Source      string `json:"source,omitempty"`
-	ContentType string `json:"content_type"`
-	PayloadSize int64  `json:"payload_size"`
-	Timestamp   int64  `json:"timestamp"`
+	Version       string `json:"version"`
+	Type          string `json:"type"`
+	MPID          string `json:"mpid"`
+	Topic         string `json:"topic"`
+	Source        string `json:"source,omitempty"`
+	ContentType   string `json:"content_type"`
+	PayloadSize   int64  `json:"payload_size"`
+	Timestamp     int64  `json:"timestamp"`
+	CallbackTopic string `json:"callback_topic,omitempty"`
 }
 
 // NewEnvelope creates an Envelope with a freshly generated MPID.
@@ -37,6 +39,18 @@ func NewEnvelope(topic, source, contentType string, payloadSize int64) Envelope 
 		ContentType: contentType,
 		PayloadSize: payloadSize,
 		Timestamp:   time.Now().UnixMilli(),
+	}
+}
+
+// NewCallbackCloseEnvelope creates a lightweight envelope that signals
+// the publisher to stop listening on the callback topic.
+func NewCallbackCloseEnvelope(callbackTopic, source string) Envelope {
+	return Envelope{
+		Version:   EnvelopeVersion,
+		Type:      CallbackCloseType,
+		Topic:     callbackTopic,
+		Source:    source,
+		Timestamp: time.Now().UnixMilli(),
 	}
 }
 
@@ -54,7 +68,8 @@ func UnmarshalEnvelope(data []byte) (Envelope, error) {
 	return env, nil
 }
 
-// IsClaimCheck returns true when the payload looks like a claim-check envelope.
+// IsClaimCheck returns true when the payload is a claim-check envelope
+// (either a standard message or a callback close signal).
 func IsClaimCheck(data []byte) bool {
 	var probe struct {
 		Type string `json:"type"`
@@ -62,7 +77,18 @@ func IsClaimCheck(data []byte) bool {
 	if err := json.Unmarshal(data, &probe); err != nil {
 		return false
 	}
-	return probe.Type == EnvelopeType
+	return probe.Type == EnvelopeType || probe.Type == CallbackCloseType
+}
+
+// IsCallbackClose returns true when the envelope is a callback close signal.
+func IsCallbackClose(data []byte) bool {
+	var probe struct {
+		Type string `json:"type"`
+	}
+	if err := json.Unmarshal(data, &probe); err != nil {
+		return false
+	}
+	return probe.Type == CallbackCloseType
 }
 
 // GenerateMPID produces a unique Message Payload Identifier (UUIDv4).

@@ -45,13 +45,24 @@ func main() {
 	topic := envOr("TOPIC", "sensors/#")
 
 	err = sub.Subscribe(topic, func(msg subscriber.Message) {
-		fmt.Printf("Received claim-check message\n  MPID:    %s\n  Topic:   %s\n  Source:  %s\n  Size:    %d bytes\n  Payload: %s\n\n",
-			msg.Envelope.MPID,
-			msg.Topic,
-			msg.Envelope.Source,
-			msg.Envelope.PayloadSize,
-			string(msg.Payload),
-		)
+		fmt.Printf("Received message\n  MPID:    %s\n  Topic:   %s\n  Source:  %s\n  Size:    %d bytes\n  Payload: %s\n",
+			msg.Envelope.MPID, msg.Topic, msg.Envelope.Source,
+			msg.Envelope.PayloadSize, string(msg.Payload))
+
+		if msg.HasCallback() {
+			fmt.Printf("  Callback topic: %s — sending reply...\n", msg.Envelope.CallbackTopic)
+
+			reply := []byte(fmt.Sprintf(`{"ack":true,"received_mpid":"%s"}`, msg.Envelope.MPID))
+			if err := msg.Reply(context.Background(), "application/json", reply); err != nil {
+				slog.Error("reply failed", "err", err)
+				return
+			}
+
+			if err := msg.CloseCallback(); err != nil {
+				slog.Error("close callback failed", "err", err)
+			}
+		}
+		fmt.Println()
 	})
 	if err != nil {
 		slog.Error("subscribe", "err", err)

@@ -3,7 +3,8 @@ services:
     image: eclipse-mosquitto:2
     entrypoint: /bin/sh
     command: >
-      -c "mosquitto_passwd -b -c /mosquitto/config/passwd $${MQTT_USERNAME} $${MQTT_PASSWORD}
+      -c "mosquitto_passwd -b -c /tmp/passwd $${MQTT_USERNAME} $${MQTT_PASSWORD}
+      && chmod 644 /tmp/passwd
       && mosquitto -c /mosquitto/config/mosquitto.conf"
     ports:
       - "1883:1883"
@@ -24,24 +25,6 @@ services:
       MINIO_ROOT_PASSWORD: minioadmin
     volumes:
       - minio-data:/data
-
-  gateway:
-    build: .
-    ports:
-      - "8080:8080"
-    environment:
-      LISTEN_ADDR: ":8080"
-      MQTT_BROKER_URL: "tcp://mqtt:1883"
-      MQTT_CLIENT_ID: "claimcheck-gateway"
-      MQTT_USERNAME: "claimcheck"
-      MQTT_PASSWORD: "claimcheck123"
-      MINIO_ENDPOINT: "minio:9000"
-      MINIO_ACCESS_KEY: "minioadmin"
-      MINIO_SECRET_KEY: "minioadmin"
-      MINIO_BUCKET: "claimcheck"
-    depends_on:
-      - mqtt
-      - minio
 
 volumes:
   minio-data:

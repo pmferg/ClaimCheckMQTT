@@ -37,6 +37,20 @@ func TestEnvelope_RoundTrip(t *testing.T) {
 	}
 }
 
+func TestEnvelope_CallbackTopic(t *testing.T) {
+	env := claimcheck.NewEnvelope("t", "src", "text/plain", 10)
+	env.CallbackTopic = "claimcheck/callbacks/abc-123"
+
+	data, _ := env.Marshal()
+	got, err := claimcheck.UnmarshalEnvelope(data)
+	if err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if got.CallbackTopic != "claimcheck/callbacks/abc-123" {
+		t.Errorf("callback_topic mismatch: got %q", got.CallbackTopic)
+	}
+}
+
 func TestIsClaimCheck(t *testing.T) {
 	env := claimcheck.NewEnvelope("t", "", "text/plain", 10)
 	data, _ := env.Marshal()
@@ -49,5 +63,26 @@ func TestIsClaimCheck(t *testing.T) {
 	}
 	if claimcheck.IsClaimCheck([]byte(`not json`)) {
 		t.Error("expected IsClaimCheck to return false for invalid JSON")
+	}
+}
+
+func TestIsClaimCheck_CallbackClose(t *testing.T) {
+	env := claimcheck.NewCallbackCloseEnvelope("claimcheck/callbacks/xyz", "src")
+	data, _ := env.Marshal()
+
+	if !claimcheck.IsClaimCheck(data) {
+		t.Error("expected IsClaimCheck true for callback close")
+	}
+	if !claimcheck.IsCallbackClose(data) {
+		t.Error("expected IsCallbackClose true")
+	}
+}
+
+func TestIsCallbackClose_FalseForNormal(t *testing.T) {
+	env := claimcheck.NewEnvelope("t", "", "text/plain", 5)
+	data, _ := env.Marshal()
+
+	if claimcheck.IsCallbackClose(data) {
+		t.Error("expected IsCallbackClose false for normal envelope")
 	}
 }
